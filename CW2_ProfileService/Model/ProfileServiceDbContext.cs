@@ -21,6 +21,10 @@ namespace CW2_ProfileService.Model
         public DbSet<Friends> Friends { get; set; }
         public DbSet<FriendsKey> FriendsKey { get; set; }
 
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.HasDefaultSchema("CW2");
+        }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {

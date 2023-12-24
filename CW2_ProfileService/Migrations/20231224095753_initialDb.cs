@@ -10,8 +10,12 @@ namespace CW2_ProfileService.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.EnsureSchema(
+                name: "CW2");
+
             migrationBuilder.CreateTable(
                 name: "Friends",
+                schema: "CW2",
                 columns: table => new
                 {
                     friendID = table.Column<int>(type: "int", nullable: false)
@@ -26,7 +30,8 @@ namespace CW2_ProfileService.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "FriendsKeys",
+                name: "FriendsKey",
+                schema: "CW2",
                 columns: table => new
                 {
                     friendsKeyID = table.Column<int>(type: "int", nullable: false)
@@ -36,11 +41,12 @@ namespace CW2_ProfileService.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_FriendsKeys", x => x.friendsKeyID);
+                    table.PrimaryKey("PK_FriendsKey", x => x.friendsKeyID);
                 });
 
             migrationBuilder.CreateTable(
                 name: "HikingGroups",
+                schema: "CW2",
                 columns: table => new
                 {
                     groupID = table.Column<int>(type: "int", nullable: false)
@@ -56,6 +62,7 @@ namespace CW2_ProfileService.Migrations
 
             migrationBuilder.CreateTable(
                 name: "HikingHistory",
+                schema: "CW2",
                 columns: table => new
                 {
                     historyID = table.Column<int>(type: "int", nullable: false)
@@ -74,6 +81,7 @@ namespace CW2_ProfileService.Migrations
 
             migrationBuilder.CreateTable(
                 name: "JoinedHikingGroups",
+                schema: "CW2",
                 columns: table => new
                 {
                     joinedGroupID = table.Column<int>(type: "int", nullable: false)
@@ -88,6 +96,7 @@ namespace CW2_ProfileService.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Trails",
+                schema: "CW2",
                 columns: table => new
                 {
                     TrailID = table.Column<int>(type: "int", nullable: false)
@@ -101,6 +110,7 @@ namespace CW2_ProfileService.Migrations
 
             migrationBuilder.CreateTable(
                 name: "UserProfile",
+                schema: "CW2",
                 columns: table => new
                 {
                     UserID = table.Column<int>(type: "int", nullable: false)
@@ -122,25 +132,32 @@ namespace CW2_ProfileService.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Friends");
+                name: "Friends",
+                schema: "CW2");
 
             migrationBuilder.DropTable(
-                name: "FriendsKeys");
+                name: "FriendsKey",
+                schema: "CW2");
 
             migrationBuilder.DropTable(
-                name: "HikingGroups");
+                name: "HikingGroups",
+                schema: "CW2");
 
             migrationBuilder.DropTable(
-                name: "HikingHistory");
+                name: "HikingHistory",
+                schema: "CW2");
 
             migrationBuilder.DropTable(
-                name: "JoinedHikingGroups");
+                name: "JoinedHikingGroups",
+                schema: "CW2");
 
             migrationBuilder.DropTable(
-                name: "Trails");
+                name: "Trails",
+                schema: "CW2");
 
             migrationBuilder.DropTable(
-                name: "UserProfile");
+                name: "UserProfile",
+                schema: "CW2");
         }
     }
 }

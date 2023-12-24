@@ -1,10 +1,12 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Swashbuckle.AspNetCore.Annotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace CW2_ProfileService.Model
 {
     public class UserProfile
     {
         [Key]
+        [SwaggerSchema(ReadOnly = true)]
         public int UserID { get; set; }
         public String Username { get; set; }
         public String Password { get; set; }

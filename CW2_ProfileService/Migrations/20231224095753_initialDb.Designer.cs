@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CW2_ProfileService.Migrations
 {
     [DbContext(typeof(ProfileServiceDbContext))]
-    [Migration("20231223161648_initialDb")]
+    [Migration("20231224095753_initialDb")]
     partial class initialDb
     {
         /// <inheritdoc />
@@ -19,6 +19,7 @@ namespace CW2_ProfileService.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("CW2")
                 .HasAnnotation("ProductVersion", "8.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
@@ -44,7 +45,7 @@ namespace CW2_ProfileService.Migrations
 
                     b.HasKey("friendID");
 
-                    b.ToTable("Friends");
+                    b.ToTable("Friends", "CW2");
                 });
 
             modelBuilder.Entity("CW2_ProfileService.Model.FriendsKey", b =>
@@ -63,7 +64,7 @@ namespace CW2_ProfileService.Migrations
 
                     b.HasKey("friendsKeyID");
 
-                    b.ToTable("FriendsKeys");
+                    b.ToTable("FriendsKey", "CW2");
                 });
 
             modelBuilder.Entity("CW2_ProfileService.Model.HikingGroups", b =>
@@ -87,7 +88,7 @@ namespace CW2_ProfileService.Migrations
 
                     b.HasKey("groupID");
 
-                    b.ToTable("HikingGroups");
+                    b.ToTable("HikingGroups", "CW2");
                 });
 
             modelBuilder.Entity("CW2_ProfileService.Model.HikingHistory", b =>
@@ -120,7 +121,7 @@ namespace CW2_ProfileService.Migrations
 
                     b.HasKey("historyID");
 
-                    b.ToTable("HikingHistory");
+                    b.ToTable("HikingHistory", "CW2");
                 });
 
             modelBuilder.Entity("CW2_ProfileService.Model.JoinedHikingGroups", b =>
@@ -139,7 +140,7 @@ namespace CW2_ProfileService.Migrations
 
                     b.HasKey("joinedGroupID");
 
-                    b.ToTable("JoinedHikingGroups");
+                    b.ToTable("JoinedHikingGroups", "CW2");
                 });
 
             modelBuilder.Entity("CW2_ProfileService.Model.Trails", b =>
@@ -156,7 +157,7 @@ namespace CW2_ProfileService.Migrations
 
                     b.HasKey("TrailID");
 
-                    b.ToTable("Trails");
+                    b.ToTable("Trails", "CW2");
                 });
 
             modelBuilder.Entity("CW2_ProfileService.Model.UserProfile", b =>
@@ -193,7 +194,7 @@ namespace CW2_ProfileService.Migrations
 
                     b.HasKey("UserID");
 
-                    b.ToTable("UserProfile");
+                    b.ToTable("UserProfile", "CW2");
                 });
 #pragma warning restore 612, 618
         }

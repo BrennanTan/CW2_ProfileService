@@ -9,6 +9,13 @@ using System.Text;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
+using System.Net;
+using System;
+using Azure;
+using System.Text.Json;
+using Newtonsoft.Json.Linq;
+
+//DO AUTHENTICATION BUTTTON IN SWAGGER
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("AppDb");
@@ -39,42 +46,51 @@ app.UseAuthorization();
 app.UseAuthentication();
 app.UseSwagger(x  => x.SerializeAsV2 = true);
 
-
 // UserProfile API
 //Login
-app.MapPost("/user/login", ([FromServices] ProfileServiceDbContext db, LoginForm login) => 
+app.MapPost("/user/login", async ([FromServices] ProfileServiceDbContext db, LoginForm login) => 
 {
+    //Post request UOP to auth api 
+    var client = new HttpClient();
+    client.BaseAddress = new Uri("https://web.socem.plymouth.ac.uk/COMP2001/auth/api/");
+    var json = JsonSerializer.Serialize(login);
+    var content = new StringContent(json, Encoding.UTF8, "application/json");
+    var response = client.PostAsync("users", content).Result;
+    var responseContent = response.Content.ReadAsStringAsync().Result;
 
+    if (responseContent.Contains("True"))
+    {
         var foundUser = db.UserProfile.FirstOrDefault(u => u.Username == login.Username && u.Email == login.Email && u.Status == "ACTIVE");
         PasswordHasher hasher = new PasswordHasher();
-         if (hasher.Verify(foundUser.Password,login.Password))
-         {
-                var claims = new[]
-                {
+        if (hasher.Verify(foundUser.Password, login.Password))
+        {
+            var claims = new[]
+            {
                     new Claim(ClaimTypes.NameIdentifier, foundUser.Username),
                     new Claim(ClaimTypes.Email, foundUser.Email),
                     new Claim(ClaimTypes.Role, foundUser.Role)
                 };
 
-                var token = new JwtSecurityToken(
-                        issuer: builder.Configuration["Jwt:Issuer"],
-                        audience: builder.Configuration["Jwt:Audience"],
-                        claims: claims,
-                        expires: DateTime.UtcNow.AddMinutes(20),
-                        notBefore: DateTime.UtcNow,
-                        signingCredentials: new SigningCredentials(
-                            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
-                            SecurityAlgorithms.HmacSha256)
-                    );
+            var token = new JwtSecurityToken(
+                    issuer: builder.Configuration["Jwt:Issuer"],
+                    audience: builder.Configuration["Jwt:Audience"],
+                    claims: claims,
+                    expires: DateTime.UtcNow.AddMinutes(20),
+                    notBefore: DateTime.UtcNow,
+                    signingCredentials: new SigningCredentials(
+                        new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+                        SecurityAlgorithms.HmacSha256)
+                );
 
-                var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-                return tokenString;
-         }
-         else
-         {
-            return "Account not found";
-         }
+            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+            return tokenString;
+        }
+    }
+    else
+    {
+        return "Not Verified";
+    }
+    return "Error";
 });
 
 //Get all users
@@ -101,15 +117,13 @@ app.MapPost("/user/register", ([FromServices] ProfileServiceDbContext db, UserPr
     db.SaveChanges();
 });
 //Update user details
-app.MapPut("/user/update/{id}", ([FromServices] ProfileServiceDbContext db, int userID, UserProfile user) =>
+app.MapPut("/user/update/{id}",
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
+([FromServices] ProfileServiceDbContext db, int userID, EditUser user) =>
 {
     var target = db.UserProfile.FirstOrDefault(u => u.UserID == userID);
     target.Username = user.Username;
-    target.Password = user.Password;
     target.Email = user.Email;
-    target.Role = user.Role;
-    target.JoinDate = user.JoinDate;
-    target.Status = user.Status;
     db.SaveChanges();
 });
 //Delete user
@@ -121,5 +135,14 @@ app.MapPost("/user/delete/{id}",
     db.UserProfile.Remove(target);
     db.SaveChanges();
 });
+//Archive users
+app.MapPut("/user/archive/{id}",
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
+([FromServices] ProfileServiceDbContext db, int userID) =>
+    {
+        var target = db.UserProfile.FirstOrDefault(u => u.UserID == userID);
+        target.Status = "INACTIVE";
+        db.SaveChanges();
+    });
 
 app.Run();

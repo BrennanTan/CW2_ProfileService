@@ -4,18 +4,12 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
-using System.Net;
-using System;
-using Azure;
 using System.Text.Json;
-using Newtonsoft.Json.Linq;
-
-//DO AUTHENTICATION BUTTTON IN SWAGGER
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("AppDb");
@@ -39,16 +33,52 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSwaggerGen(options =>
 {
     options.EnableAnnotations();
+    options.AddSecurityDefinition(name: JwtBearerDefaults.AuthenticationScheme,
+        securityScheme: new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Description = "Enter the Bearer Authorization : `Bearer generated-JWT Token`",
+            In=ParameterLocation.Header,
+            Type=SecuritySchemeType.ApiKey,
+            Scheme = "Bearer"
+        });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type=ReferenceType.SecurityScheme,
+                    Id=JwtBearerDefaults.AuthenticationScheme
+                }
+            }, new string[]
+            {
+
+            }
+
+        }
+
+    });
 });
 var app = builder.Build();
 app.UseSwaggerUI();
-app.UseAuthorization();
 app.UseAuthentication();
+app.UseAuthorization();
 app.UseSwagger(x  => x.SerializeAsV2 = true);
 
 // UserProfile API
+//Register user
+app.MapPost("/accounts/register", ([FromServices] ProfileServiceDbContext db, UserProfile user) =>
+{
+    PasswordHasher hasher = new PasswordHasher();
+    var hashedPassword = hasher.Hash(user.Password);
+    user.Password = hashedPassword;
+    db.UserProfile.Add(user);
+    db.SaveChanges();
+});
 //Login
-app.MapPost("/user/login", async ([FromServices] ProfileServiceDbContext db, LoginForm login) => 
+app.MapPost("/accounts/login", async ([FromServices] ProfileServiceDbContext db, LoginForm login) => 
 {
     //Post request UOP to auth api 
     var client = new HttpClient();
@@ -92,30 +122,39 @@ app.MapPost("/user/login", async ([FromServices] ProfileServiceDbContext db, Log
     }
     return "Error";
 });
-
 //Get all users
-app.MapGet("/users",
+app.MapGet("/admin/getallusers",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
     ([FromServices] ProfileServiceDbContext db) =>
 {
     return db.UserProfile.ToList();
 });
 //Get specific user
-app.MapGet("/user/{id}",
+app.MapGet("/admin/getuser/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
-    ([FromServices] ProfileServiceDbContext db, string userID) =>
+    ([FromServices] ProfileServiceDbContext db, int userID) =>
 {
     return db.UserProfile.Find(userID);
 });
-//Register user
-app.MapPost("/user/register", ([FromServices] ProfileServiceDbContext db, UserProfile user) =>
-{
-    PasswordHasher hasher = new PasswordHasher();
-    var hashedPassword = hasher.Hash(user.Password);
-    user.Password = hashedPassword;
-    db.UserProfile.Add(user);
-    db.SaveChanges();
-});
+//Get user own data
+app.MapGet("/user/getuser/{id}",
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
+([FromServices] ProfileServiceDbContext db, int userID) =>
+    {
+        return db.UserProfile.Find(userID);
+    });
+//User limited view others
+app.MapGet("/user/getotheruser/{id}",
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
+([FromServices] ProfileServiceDbContext db, int userID) =>
+    {
+        var user = db.UserProfile.FirstOrDefault(u => u.UserID == userID && u.Role == "USER");
+        LimitedUserProfileView view = new LimitedUserProfileView();
+        view.Username = user.Username;
+        view.JoinDate = user.JoinDate;
+        return view;
+
+    });
 //Update user details
 app.MapPut("/user/update/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
@@ -136,7 +175,7 @@ app.MapPost("/user/delete/{id}",
     db.SaveChanges();
 });
 //Archive users
-app.MapPut("/user/archive/{id}",
+app.MapPut("/admin/archive/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
 ([FromServices] ProfileServiceDbContext db, int userID) =>
     {

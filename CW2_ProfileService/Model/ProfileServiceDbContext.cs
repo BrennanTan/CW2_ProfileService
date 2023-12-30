@@ -13,7 +13,7 @@ namespace CW2_ProfileService.Model
         {
         }
 
-        public DbSet<UserProfile> UserProfile { get; set; }
+        public DbSet<FullUserProfile> UserProfile { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -69,7 +69,7 @@ app.UseSwagger(x  => x.SerializeAsV2 = true);
 
 // UserProfile API
 //Register user
-app.MapPost("/accounts/register", ([FromServices] ProfileServiceDbContext db, UserProfile user) =>
+app.MapPost("/accounts/register", ([FromServices] ProfileServiceDbContext db, FullUserProfile user) =>
 {
     PasswordHasher hasher = new PasswordHasher();
     var hashedPassword = hasher.Hash(user.Password);
@@ -94,18 +94,21 @@ app.MapPost("/accounts/login", async ([FromServices] ProfileServiceDbContext db,
         PasswordHasher hasher = new PasswordHasher();
         if (hasher.Verify(foundUser.Password, login.Password))
         {
+            int userID = foundUser.UserID;
+            string claimsUserID = userID.ToString();
             var claims = new[]
             {
-                    new Claim(ClaimTypes.NameIdentifier, foundUser.Username),
-                    new Claim(ClaimTypes.Email, foundUser.Email),
-                    new Claim(ClaimTypes.Role, foundUser.Role)
+                    new Claim("UserID", claimsUserID),
+                    new Claim("Username", foundUser.Username),
+                    new Claim("Email", foundUser.Email),
+                    new Claim(ClaimTypes.Role, foundUser.Role),
                 };
 
             var token = new JwtSecurityToken(
                     issuer: builder.Configuration["Jwt:Issuer"],
                     audience: builder.Configuration["Jwt:Audience"],
                     claims: claims,
-                    expires: DateTime.UtcNow.AddMinutes(20),
+                    expires: DateTime.UtcNow.AddHours(6),
                     notBefore: DateTime.UtcNow,
                     signingCredentials: new SigningCredentials(
                         new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
@@ -132,23 +135,28 @@ app.MapGet("/admin/getallusers",
 //Get specific user
 app.MapGet("/admin/getuser/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
-    ([FromServices] ProfileServiceDbContext db, int userID) =>
+    ([FromServices] ProfileServiceDbContext db, int id) =>
 {
-    return db.UserProfile.Find(userID);
+    return db.UserProfile.Find(id);
 });
 //Get user own data
 app.MapGet("/user/getuser/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
-([FromServices] ProfileServiceDbContext db, int userID) =>
+([FromServices] ProfileServiceDbContext db, int id) =>
     {
-        return db.UserProfile.Find(userID);
+        var user = db.UserProfile.Find(id);
+        SelfUserProfileData view = new SelfUserProfileData();
+        view.Username = user.Username;
+        view.Email = user.Email;
+        view.JoinDate = user.JoinDate;
+        return view;
     });
 //User limited view others
 app.MapGet("/user/getotheruser/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
-([FromServices] ProfileServiceDbContext db, int userID) =>
+([FromServices] ProfileServiceDbContext db, int id) =>
     {
-        var user = db.UserProfile.FirstOrDefault(u => u.UserID == userID && u.Role == "USER");
+        var user = db.UserProfile.FirstOrDefault(u => u.UserID == id && u.Role == "USER");
         LimitedUserProfileView view = new LimitedUserProfileView();
         view.Username = user.Username;
         view.JoinDate = user.JoinDate;
@@ -158,9 +166,9 @@ app.MapGet("/user/getotheruser/{id}",
 //Update user details
 app.MapPut("/user/update/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
-([FromServices] ProfileServiceDbContext db, int userID, EditUser user) =>
+([FromServices] ProfileServiceDbContext db, int id, EditUser user) =>
 {
-    var target = db.UserProfile.FirstOrDefault(u => u.UserID == userID);
+    var target = db.UserProfile.FirstOrDefault(u => u.UserID == id);
     target.Username = user.Username;
     target.Email = user.Email;
     db.SaveChanges();
@@ -168,18 +176,18 @@ app.MapPut("/user/update/{id}",
 //Delete user
 app.MapPost("/user/delete/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
-    ([FromServices] ProfileServiceDbContext db, int userID) =>
+    ([FromServices] ProfileServiceDbContext db, int id) =>
 {
-    var target = db.UserProfile.Find(userID);
+    var target = db.UserProfile.Find(id);
     db.UserProfile.Remove(target);
     db.SaveChanges();
 });
 //Archive users
 app.MapPut("/admin/archive/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
-([FromServices] ProfileServiceDbContext db, int userID) =>
+([FromServices] ProfileServiceDbContext db, int id) =>
     {
-        var target = db.UserProfile.FirstOrDefault(u => u.UserID == userID);
+        var target = db.UserProfile.FirstOrDefault(u => u.UserID == id);
         target.Status = "INACTIVE";
         db.SaveChanges();
     });

@@ -152,16 +152,21 @@ app.MapGet("/user/getuser/{id}",
         return view;
     });
 //User limited view others
-app.MapGet("/user/getotheruser/{id}",
+app.MapGet("/user/getotheruser",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
-([FromServices] ProfileServiceDbContext db, int id) =>
+([FromServices] ProfileServiceDbContext db) =>
     {
-        var user = db.UserProfile.FirstOrDefault(u => u.UserID == id && u.Role == "USER");
-        LimitedUserProfileView view = new LimitedUserProfileView();
-        view.Username = user.Username;
-        view.JoinDate = user.JoinDate;
-        return view;
+        var users = db.UserProfile
+        .Where(u => u.Role == "USER") // Filter users by role
+        .ToList();
 
+        List<LimitedUserProfileView> views = users.Select(user => new LimitedUserProfileView
+        {
+            Username = user.Username,
+            JoinDate = user.JoinDate
+        }).ToList();
+
+        return views;
     });
 //Update user details
 app.MapPut("/user/update/{id}",

@@ -145,23 +145,6 @@ app.MapGet("/admin/getallusers",
 
     return views;
 });
-//Get specific user
-app.MapGet("/admin/getuser/{id}",
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
-    ([FromServices] ProfileServiceDbContext db, int id) =>
-{
-    var user = db.UserProfile.Find(id);
-
-    AdminViewUserProfile view = new AdminViewUserProfile();
-    view.UserID = user.UserID; 
-    view.Username = user.Username;
-    view.Email = user.Email;
-    view.Role = user.Role;
-    view.JoinDate = user.JoinDate;  
-    view.Status = user.Status;
-
-    return view;
-});
 //Get user own data
 app.MapGet("/user/getuser/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
@@ -179,16 +162,15 @@ app.MapGet("/user/getotheruser/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
 ([FromServices] ProfileServiceDbContext db, int id) =>
     {
+
         var users = db.UserProfile
         .Where(u => u.Role == "USER" && u.UserID != id) // Filter users by role
         .ToList();
-
         List<LimitedUserProfileView> views = users.Select(user => new LimitedUserProfileView
         {
             Username = user.Username,
             JoinDate = user.JoinDate
         }).ToList();
-
         return views;
     });
 //Update user details

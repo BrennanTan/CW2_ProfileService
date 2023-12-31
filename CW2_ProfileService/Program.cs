@@ -10,6 +10,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
 using Microsoft.OpenApi.Models;
+using System;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("AppDb");
@@ -152,12 +153,12 @@ app.MapGet("/user/getuser/{id}",
         return view;
     });
 //User limited view others
-app.MapGet("/user/getotheruser",
+app.MapGet("/user/getotheruser/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
-([FromServices] ProfileServiceDbContext db) =>
+([FromServices] ProfileServiceDbContext db, int id) =>
     {
         var users = db.UserProfile
-        .Where(u => u.Role == "USER") // Filter users by role
+        .Where(u => u.Role == "USER" && u.UserID != id) // Filter users by role
         .ToList();
 
         List<LimitedUserProfileView> views = users.Select(user => new LimitedUserProfileView
@@ -179,10 +180,11 @@ app.MapPut("/user/update/{id}",
     db.SaveChanges();
 });
 //Delete user
-app.MapPost("/user/delete/{id}",
+app.MapPost("/user/delete",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
-    ([FromServices] ProfileServiceDbContext db, int id) =>
-{
+    ([FromServices] ProfileServiceDbContext db, DeleteUser deleteId) =>
+    {
+    var id = int.Parse(deleteId.Id);
     var target = db.UserProfile.Find(id);
     db.UserProfile.Remove(target);
     db.SaveChanges();

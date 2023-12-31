@@ -131,14 +131,36 @@ app.MapGet("/admin/getallusers",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
     ([FromServices] ProfileServiceDbContext db) =>
 {
-    return db.UserProfile.ToList();
+    var users = db.UserProfile.ToList();
+
+    List<AdminViewUserProfile> views = users.Select(user => new AdminViewUserProfile
+    {
+        UserID = user.UserID,
+        Username = user.Username,
+        Email = user.Email,
+        Role = user.Role,
+        JoinDate = user.JoinDate,
+        Status = user.Status
+    }).ToList();
+
+    return views;
 });
 //Get specific user
 app.MapGet("/admin/getuser/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
     ([FromServices] ProfileServiceDbContext db, int id) =>
 {
-    return db.UserProfile.Find(id);
+    var user = db.UserProfile.Find(id);
+
+    AdminViewUserProfile view = new AdminViewUserProfile();
+    view.UserID = user.UserID; 
+    view.Username = user.Username;
+    view.Email = user.Email;
+    view.Role = user.Role;
+    view.JoinDate = user.JoinDate;  
+    view.Status = user.Status;
+
+    return view;
 });
 //Get user own data
 app.MapGet("/user/getuser/{id}",
@@ -182,7 +204,7 @@ app.MapPut("/user/update/{id}",
 //Delete user
 app.MapPost("/user/delete",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
-    ([FromServices] ProfileServiceDbContext db, DeleteUser deleteId) =>
+    ([FromServices] ProfileServiceDbContext db, UserID deleteId) =>
     {
     var id = int.Parse(deleteId.Id);
     var target = db.UserProfile.Find(id);
@@ -190,13 +212,21 @@ app.MapPost("/user/delete",
     db.SaveChanges();
 });
 //Archive users
-app.MapPut("/admin/archive/{id}",
+app.MapPut("/admin/archive",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
-([FromServices] ProfileServiceDbContext db, int id) =>
+([FromServices] ProfileServiceDbContext db, UserID archiveId) =>
     {
-        var target = db.UserProfile.FirstOrDefault(u => u.UserID == id);
+        var id = int.Parse(archiveId.Id);
+        var checkRole = db.UserProfile.FirstOrDefault(u => u.UserID == id && u.Role == "ADMIN");
+        //If the profile to archive is admin, stop
+        if (checkRole != null)
+        {
+            return "Invalid action!";
+        }
+        var target = db.UserProfile.Find(id);
         target.Status = "INACTIVE";
         db.SaveChanges();
+        return $"Successfully archived user id {id}";
     });
 
 app.Run();

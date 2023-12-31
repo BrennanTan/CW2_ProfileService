@@ -1,6 +1,6 @@
 ﻿namespace CW2_ProfileService.Model
 {
-    public class DeleteUser
+    public class UserID
     {
         public string Id { get; set; }
     }

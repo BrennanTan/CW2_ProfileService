@@ -10,7 +10,6 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
 using Microsoft.OpenApi.Models;
-using System;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("AppDb");
@@ -68,19 +67,35 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseSwagger(x  => x.SerializeAsV2 = true);
 
-// UserProfile API
+// Track failed login attempts for a user
+Dictionary<string, int> failedLoginAttempts = new Dictionary<string, int>();
+
 //Register user
 app.MapPost("/accounts/register", ([FromServices] ProfileServiceDbContext db, FullUserProfile user) =>
 {
+    if (user.Password.Length < 8)
+    {
+        var result = Results.BadRequest("Password must be at least 8 characters long.");
+        return result;
+    }
+
     PasswordHasher hasher = new PasswordHasher();
     var hashedPassword = hasher.Hash(user.Password);
     user.Password = hashedPassword;
     db.UserProfile.Add(user);
     db.SaveChanges();
+    var result2 = Results.Ok("User registered successfully.");
+    return result2;
 });
 //Login
 app.MapPost("/accounts/login", async ([FromServices] ProfileServiceDbContext db, LoginForm login) => 
 {
+    // Check if the user has exceeded the maximum allowed failed attempts
+    if (failedLoginAttempts.TryGetValue(login.Username, out int attempts) && attempts >= 5)
+    {
+        // You might choose to log this attempt for security auditing purposes
+        return "Account temporarily blocked due to multiple failed login attempts.";
+    }
     //Post request UOP to auth api 
     var client = new HttpClient();
     client.BaseAddress = new Uri("https://web.socem.plymouth.ac.uk/COMP2001/auth/api/");
@@ -95,6 +110,11 @@ app.MapPost("/accounts/login", async ([FromServices] ProfileServiceDbContext db,
         PasswordHasher hasher = new PasswordHasher();
         if (hasher.Verify(foundUser.Password, login.Password))
         {
+            // Successful login, reset failed attempts for the user
+            if (failedLoginAttempts.ContainsKey(login.Username))
+            {
+                failedLoginAttempts.Remove(login.Username);
+            }
             int userID = foundUser.UserID;
             string claimsUserID = userID.ToString();
             var claims = new[]
@@ -122,6 +142,15 @@ app.MapPost("/accounts/login", async ([FromServices] ProfileServiceDbContext db,
     }
     else
     {
+        // Increment failed login attempts for the user
+        if (failedLoginAttempts.ContainsKey(login.Username))
+        {
+            failedLoginAttempts[login.Username]++;
+        }
+        else
+        {
+            failedLoginAttempts.Add(login.Username, 1);
+        }
         return "Not Verified";
     }
     return "Error";

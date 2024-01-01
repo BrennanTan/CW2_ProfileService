@@ -10,8 +10,13 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
 using Microsoft.OpenApi.Models;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+// Configure Serilog for file logging
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.File("Logs/myapp-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
 var connectionString = builder.Configuration.GetConnectionString("AppDb");
 builder.Services.AddDbContext<ProfileServiceDbContext>(x => x.UseSqlServer(connectionString));
 builder.Services.AddEndpointsApiExplorer();
@@ -73,6 +78,16 @@ Dictionary<string, int> failedLoginAttempts = new Dictionary<string, int>();
 //Register user
 app.MapPost("/accounts/register", ([FromServices] ProfileServiceDbContext db, FullUserProfile user) =>
 {
+    user.Username.Trim();
+    user.Email.Trim();
+    user.Password.Trim();
+    // Check for null or empty username and email
+    if (string.IsNullOrEmpty(user.Username) || string.IsNullOrEmpty(user.Email))
+    {
+        var result = Results.BadRequest("Username and Email are required fields.");
+        return result;
+    }
+
     if (user.Password.Length < 8)
     {
         var result = Results.BadRequest("Password must be at least 8 characters long.");
@@ -84,17 +99,26 @@ app.MapPost("/accounts/register", ([FromServices] ProfileServiceDbContext db, Fu
     user.Password = hashedPassword;
     db.UserProfile.Add(user);
     db.SaveChanges();
+    Log.Information($"{user.Username} successful register");
     var result2 = Results.Ok("User registered successfully.");
     return result2;
 });
 //Login
 app.MapPost("/accounts/login", async ([FromServices] ProfileServiceDbContext db, LoginForm login) => 
 {
+    login.Username.Trim();
+    login.Email.Trim();
+    login.Password.Trim();
     // Check if the user has exceeded the maximum allowed failed attempts
     if (failedLoginAttempts.TryGetValue(login.Username, out int attempts) && attempts >= 5)
     {
-        // You might choose to log this attempt for security auditing purposes
+        Log.Warning($"{login.Username} Account temporarily blocked due to multiple failed login attempts.");
         return "Account temporarily blocked due to multiple failed login attempts.";
+    }
+    // Check for null or empty username and email
+    if (string.IsNullOrEmpty(login.Username) || string.IsNullOrEmpty(login.Email))
+    {
+        return "Username and Email are required fields.";
     }
     //Post request UOP to auth api 
     var client = new HttpClient();
@@ -137,6 +161,7 @@ app.MapPost("/accounts/login", async ([FromServices] ProfileServiceDbContext db,
                 );
 
             var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+            Log.Information($"{foundUser.Username} successful login");
             return tokenString;
         }
     }
@@ -146,13 +171,17 @@ app.MapPost("/accounts/login", async ([FromServices] ProfileServiceDbContext db,
         if (failedLoginAttempts.ContainsKey(login.Username))
         {
             failedLoginAttempts[login.Username]++;
+            Log.Warning($"{login.Username} failed login attempt");
         }
         else
         {
             failedLoginAttempts.Add(login.Username, 1);
+            Log.Warning($"{login.Username} failed login attempt");
         }
+        Log.Warning($"{login.Username} not verified login attempt");
         return "Not Verified";
     }
+    Log.Error("Login Error");
     return "Error";
 });
 //Get all users
@@ -171,7 +200,7 @@ app.MapGet("/admin/getallusers",
         JoinDate = user.JoinDate,
         Status = user.Status
     }).ToList();
-
+    Log.Information($"Get all users accessed");
     return views;
 });
 //Get user own data
@@ -191,7 +220,6 @@ app.MapGet("/user/getotheruser/{id}",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "USER")]
 ([FromServices] ProfileServiceDbContext db, int id) =>
     {
-
         var users = db.UserProfile
         .Where(u => u.Role == "USER" && u.UserID != id) // Filter users by role
         .ToList();
@@ -208,9 +236,11 @@ app.MapPut("/user/update/{id}",
 ([FromServices] ProfileServiceDbContext db, int id, EditUser user) =>
 {
     var target = db.UserProfile.FirstOrDefault(u => u.UserID == id);
+    var oldName = target.Username;
     target.Username = user.Username;
     target.Email = user.Email;
     db.SaveChanges();
+    Log.Information($"User {oldName} updated profile. New name {user.Username} New Email {user.Email}");
 });
 //Delete user
 app.MapPost("/user/delete",
@@ -219,9 +249,11 @@ app.MapPost("/user/delete",
     {
     var id = int.Parse(deleteId.Id);
     var target = db.UserProfile.Find(id);
+    var targetName = target.Username;
     db.UserProfile.Remove(target);
     db.SaveChanges();
-});
+    Log.Information($"User {targetName} deleted profile.");
+    });
 //Archive users
 app.MapPut("/admin/archive",
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "ADMIN")]
@@ -232,11 +264,13 @@ app.MapPut("/admin/archive",
         //If the profile to archive is admin, stop
         if (checkRole != null)
         {
+            Log.Information("Attempt to archive admin user");
             return "Invalid action!";
         }
         var target = db.UserProfile.Find(id);
         target.Status = "INACTIVE";
         db.SaveChanges();
+        Log.Information($"Successfully archived user id {id}");
         return $"Successfully archived user id {id}";
     });
 

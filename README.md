@@ -2,11 +2,17 @@
 This is a RESTful API for managing user profiles using ASP.NET Core with Entity Framework Core for database operations and JWT authentication for secure access.
 
 Features:
+
 User Registration: /accounts/register
+
 User Login: /accounts/login
+
 Admin Actions:
+
 Get all users: /admin/getallusers
+
 Archive user: /admin/archive
+
 
 Prerequisites:
 .NET SDK installed

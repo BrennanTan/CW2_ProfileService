@@ -5,6 +5,7 @@ Features:
 
 User Registration: /accounts/register
 User Login: /accounts/login
+
 Admin Actions:
 Get all users: /admin/getallusers
 Archive user: /admin/archive

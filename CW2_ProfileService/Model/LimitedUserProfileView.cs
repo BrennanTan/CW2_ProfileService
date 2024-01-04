@@ -1,7 +1,4 @@
-﻿using Swashbuckle.AspNetCore.Annotations;
-using System.ComponentModel.DataAnnotations;
-
-namespace CW2_ProfileService.Model
+﻿namespace CW2_ProfileService.Model
 {
     public class LimitedUserProfileView
     {

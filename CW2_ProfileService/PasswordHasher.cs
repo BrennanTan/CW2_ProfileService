@@ -1,20 +1,33 @@
 ﻿using System.Security.Cryptography;
+using System.Text;
+using Konscious.Security.Cryptography;
 
 namespace CW2_ProfileService
 {
     public class PasswordHasher
     {
         private const int saltSize = 16;
-        private const int keySize = 32;
-        private const int iterations = 10000;
-        private static readonly HashAlgorithmName hashAlgorithmName = HashAlgorithmName.SHA256;
+        private const int hashSize = 32;
+        private const int iterations = 4; // Adjust as needed for performance vs. security tradeoff
         private static char Delimiter = ';';
         public string Hash(string password)
         {
-            var salt = RandomNumberGenerator.GetBytes(saltSize);
-            var hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, hashAlgorithmName, keySize);
+            var salt = new byte[saltSize];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(salt);
+            }
 
-            return string.Join(Delimiter, Convert.ToBase64String(salt), Convert.ToBase64String(hash));
+            using (var argon2 = new Argon2id(Encoding.UTF8.GetBytes(password)))
+            {
+                argon2.Salt = salt;
+                argon2.DegreeOfParallelism = 8; // Adjust based on system capabilities
+                argon2.MemorySize = 65536; // Adjust based on system capabilities
+                argon2.Iterations = iterations;
+
+                var hash = argon2.GetBytes(hashSize);
+                return string.Join(Delimiter, Convert.ToBase64String(salt), Convert.ToBase64String(hash));
+            }
         }
 
         public bool Verify(string passwordHash, string inputPassword)
@@ -23,9 +36,16 @@ namespace CW2_ProfileService
             var salt = Convert.FromBase64String(elements[0]);
             var hash = Convert.FromBase64String(elements[1]);
 
-            var hashInput = Rfc2898DeriveBytes.Pbkdf2(inputPassword, salt, iterations, hashAlgorithmName, keySize);
+            using (var argon2 = new Argon2id(Encoding.UTF8.GetBytes(inputPassword)))
+            {
+                argon2.Salt = salt;
+                argon2.DegreeOfParallelism = 8; // Adjust based on system capabilities
+                argon2.MemorySize = 65536; // Adjust based on system capabilities
+                argon2.Iterations = iterations;
 
-            return CryptographicOperations.FixedTimeEquals(hash, hashInput);
+                var hashInput = argon2.GetBytes(hashSize);
+                return CryptographicOperations.FixedTimeEquals(hash, hashInput);
+            }
         }
     }
 }

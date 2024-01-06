@@ -74,21 +74,20 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseSwagger(x  => x.SerializeAsV2 = true);
 
-// Track failed login attempts for a user
-Dictionary<string, int> failedLoginAttempts = new Dictionary<string, int>();
+
 
 //Register user
 app.MapPost("/accounts/register", ([FromServices] ProfileServiceDbContext db, FullUserProfile user) =>
 {
-    user.Username.Trim();
-    user.Email.Trim();
-    user.Password.Trim();
     // Check for null or empty username and email
     if (string.IsNullOrEmpty(user.Username) || string.IsNullOrEmpty(user.Email))
     {
         var result = Results.BadRequest("Username and Email are required fields.");
         return result;
     }
+    user.Username.Trim();
+    user.Email.Trim();
+    user.Password.Trim();
 
     if (user.Password.Length < 8)
     {
@@ -106,9 +105,16 @@ app.MapPost("/accounts/register", ([FromServices] ProfileServiceDbContext db, Fu
     return result2;
 });
 
+// Track failed login attempts for a user
+Dictionary<string, int> failedLoginAttempts = new Dictionary<string, int>();
 //Login
 app.MapPost("/accounts/login", ([FromServices] ProfileServiceDbContext db, LoginForm login) => 
 {
+    // Check for null or empty username and email
+    if (string.IsNullOrEmpty(login.Username) || string.IsNullOrEmpty(login.Email))
+    {
+        return "Username and Email are required fields.";
+    }
     login.Username.Trim();
     login.Email.Trim();
     login.Password.Trim();
@@ -117,11 +123,6 @@ app.MapPost("/accounts/login", ([FromServices] ProfileServiceDbContext db, Login
     {
         Log.Warning($"{login.Username} Account temporarily blocked due to multiple failed login attempts.");
         return "Account temporarily blocked due to multiple failed login attempts.";
-    }
-    // Check for null or empty username and email
-    if (string.IsNullOrEmpty(login.Username) || string.IsNullOrEmpty(login.Email))
-    {
-        return "Username and Email are required fields.";
     }
     //Post request UOP to auth api 
     var client = new HttpClient();

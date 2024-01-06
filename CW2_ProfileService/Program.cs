@@ -20,6 +20,7 @@ Log.Logger = new LoggerConfiguration()
 var connectionString = builder.Configuration.GetConnectionString("AppDb");
 builder.Services.AddDbContext<ProfileServiceDbContext>(x => x.UseSqlServer(connectionString));
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters()
@@ -34,6 +35,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     };
 });
 builder.Services.AddAuthorization();
+
 builder.Services.AddSwaggerGen();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -103,8 +105,9 @@ app.MapPost("/accounts/register", ([FromServices] ProfileServiceDbContext db, Fu
     var result2 = Results.Ok("User registered successfully.");
     return result2;
 });
+
 //Login
-app.MapPost("/accounts/login", async ([FromServices] ProfileServiceDbContext db, LoginForm login) => 
+app.MapPost("/accounts/login", ([FromServices] ProfileServiceDbContext db, LoginForm login) => 
 {
     login.Username.Trim();
     login.Email.Trim();
